@@ -1,19 +1,37 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds            #-}
 
 module Bug
     ( fromStreamVar
+    , SVar(..)
+    , ChildEvent(..)
     )
 where
 
 import Control.Exception (fromException)
 import Control.Monad.Catch (throwM)
 
-import SVar
-    ( MonadAsync,
-      SVar(..),
-      ChildEvent(ChildStop, ChildYield),
-      ThreadAbort(ThreadAbort))
-import Stream ( Stream, mkStream, foldStream )
+import Control.Concurrent (ThreadId)
+import Control.Exception (SomeException(..), Exception)
+import Control.Monad.Catch (MonadThrow)
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad.Trans.Control (MonadBaseControl)
+import Stream (Stream, mkStream, foldStream)
+
+data ThreadAbort = ThreadAbort deriving Show
+
+instance Exception ThreadAbort
+
+-- | Events that a child thread may send to a parent thread.
+data ChildEvent a =
+      ChildYield a
+    | ChildStop ThreadId (Maybe SomeException)
+
+data SVar m a = SVar
+    { readOutputQ    :: m [ChildEvent a]
+    }
+
+type MonadAsync m = (MonadIO m, MonadBaseControl IO m, MonadThrow m)
 
 -- | Pull a stream from an SVar.
 {-# NOINLINE fromStreamVar #-}

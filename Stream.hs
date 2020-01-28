@@ -30,24 +30,6 @@ mkStream k = fromStream $ MkStream $ \yld sng stp ->
     let yieldk a r = yld a (toStream r)
      in k yieldk sng stp
 
-{-# RULES "mkStream from stream" mkStream = mkStreamFromStream #-}
-mkStreamFromStream :: IsStream t
-    => (forall r. (a -> Stream m a -> m r)
-        -> (a -> m r)
-        -> m r
-        -> m r)
-    -> t m a
-mkStreamFromStream k = fromStream $ MkStream k
-
-{-# RULES "mkStream stream" mkStream = mkStreamStream #-}
-mkStreamStream
-    :: (forall r.(a -> Stream m a -> m r)
-        -> (a -> m r)
-        -> m r
-        -> m r)
-    -> Stream m a
-mkStreamStream = MkStream
-
 {-# INLINE [1] yieldM #-}
 yieldM :: (Monad m) => m a -> Stream m a
 yieldM m = MkStream $ \_ single _ -> m >>= single
