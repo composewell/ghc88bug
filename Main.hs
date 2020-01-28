@@ -5,10 +5,8 @@
 module Main (main) where
 
 import Control.Exception (SomeException(..))
-import Control.Monad.Catch (throwM)
-import Control.Monad.Catch (MonadThrow)
+import Control.Monad.Catch (throwM, MonadThrow)
 import Control.Monad.IO.Class (MonadIO(..))
-import Prelude hiding (map, mapM, concatMap, foldr)
 
 newtype Stream m a =
     MkStream (forall r.
