@@ -39,10 +39,6 @@ mkStream k = fromStream $ MkStream $ \yld sng stp ->
     let yieldk a r = yld a (toStream r)
      in k yieldk sng stp
 
-{-# INLINE [1] yieldM #-}
-yieldM :: (Monad m) => m a -> Stream m a
-yieldM m = MkStream $ \_ single _ -> m >>= single
-
 {-# INLINE foldStream #-}
 foldStream
     :: IsStream t
@@ -65,9 +61,6 @@ drain m = go m
             single _ = return ()
             yieldk _ r = go r
         in foldStream yieldk single stop m1
-
-instance MonadTrans Stream where
-    lift = yieldM
 
 class IsStream t where
     toStream :: t m a -> Stream m a
