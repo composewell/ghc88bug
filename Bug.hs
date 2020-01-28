@@ -39,28 +39,15 @@ mkStream k = fromStream $ MkStream $ \yld sng stp ->
     let yieldk a r = yld a (toStream r)
      in k yieldk sng stp
 
-{-# INLINE foldStream #-}
-foldStream
-    :: IsStream t
-    => (a -> t m a -> m r)
-    -> (a -> m r)
-    -> m r
-    -> t m a
-    -> m r
-foldStream yld sng stp m =
-    let yieldk a x = yld a (fromStream x)
-        MkStream k = toStream m
-     in k yieldk sng stp
-
 {-# INLINE [1] drain #-}
-drain :: (Monad m, IsStream t) => t m a -> m ()
+drain :: (Monad m) => Stream m a -> m ()
 drain m = go m
     where
-    go m1 =
+    go (MkStream k) =
         let stop = return ()
             single _ = return ()
             yieldk _ r = go r
-        in foldStream yieldk single stop m1
+        in k yieldk single stop
 
 class IsStream t where
     toStream :: t m a -> Stream m a
@@ -90,13 +77,15 @@ type MonadAsync m = (MonadIO m, MonadBaseControl IO m, MonadThrow m)
 fromStreamVar :: MonadAsync m => SVar m a -> Stream m a
 fromStreamVar sv = mkStream $ \yld sng stp -> do
     list <- readOutputQ sv
-    foldStream yld sng stp $ processEvents $ reverse list
+    let MkStream k = processEvents $ reverse list
+     in k yld sng stp
 
     where
 
     {-# INLINE processEvents #-}
     processEvents [] = mkStream $ \yld sng stp -> do
-        foldStream yld sng stp $ fromStreamVar sv
+        let MkStream k = fromStreamVar sv
+         in k yld sng stp
 
     processEvents (ev : es) = mkStream $ \yld sng stp -> do
         let rest = processEvents es
@@ -108,9 +97,12 @@ fromStreamVar sv = mkStream $ \yld sng stp -> do
                         stop <- return True
                         if stop
                         then stp
-                        else foldStream yld sng stp rest
+                        else
+                            let MkStream k = rest
+                             in k yld sng stp
                     Just ex ->
                         case fromException ex of
                             Just ThreadAbort ->
-                                foldStream yld sng stp rest
+                                let MkStream k = rest
+                                 in k yld sng stp
                             Nothing -> throwM ex
