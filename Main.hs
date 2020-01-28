@@ -4,13 +4,10 @@
 
 module Main (main) where
 
-import Control.Concurrent (ThreadId)
-import Control.Exception (fromException)
-import Control.Exception (SomeException(..), Exception)
+import Control.Exception (SomeException(..))
 import Control.Monad.Catch (throwM)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Monad.Trans.Class (MonadTrans(lift))
 import Prelude hiding (map, mapM, concatMap, foldr)
 
 newtype Stream m a =
