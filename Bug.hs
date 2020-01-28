@@ -28,6 +28,14 @@ newtype Stream m a =
             -> m r
             )
 
+class IsStream t where
+    toStream :: t m a -> Stream m a
+    fromStream :: Stream m a -> t m a
+
+instance IsStream Stream where
+    toStream = id
+    fromStream = id
+
 {-# INLINE [2] mkStream #-}
 mkStream :: IsStream t
     => (forall r. (a -> t m a -> m r)
@@ -48,14 +56,6 @@ drain m = go m
             single _ = return ()
             yieldk _ r = go r
         in k yieldk single stop
-
-class IsStream t where
-    toStream :: t m a -> Stream m a
-    fromStream :: Stream m a -> t m a
-
-instance IsStream Stream where
-    toStream = id
-    fromStream = id
 
 data ThreadAbort = ThreadAbort deriving Show
 
@@ -83,11 +83,11 @@ fromStreamVar sv = mkStream $ \yld sng stp -> do
     where
 
     {-# INLINE processEvents #-}
-    processEvents [] = mkStream $ \yld sng stp -> do
+    processEvents [] = MkStream $ \yld sng stp -> do
         let MkStream k = fromStreamVar sv
          in k yld sng stp
 
-    processEvents (ev : es) = mkStream $ \yld sng stp -> do
+    processEvents (ev : es) = MkStream $ \yld sng stp -> do
         let rest = processEvents es
         case ev of
             ChildYield a -> yld a rest
