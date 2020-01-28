@@ -56,14 +56,6 @@ foldStream yld sng stp m =
         MkStream k = toStream m
      in k yieldk sng stp
 
-{-# INLINE map #-}
-map :: (a -> b) -> Stream m a -> Stream m b
-map f xs = go xs
-    where
-      go m = MkStream $ \yld sng stp ->
-                 let yieldk a r = yld (f a) (go r)
-                     single a   = sng (f a)
-                 in  foldStream yieldk single stp m
 {-# INLINE [1] drain #-}
 drain :: (Monad m, IsStream t) => t m a -> m ()
 drain m = go m
@@ -73,10 +65,6 @@ drain m = go m
             single _ = return ()
             yieldk _ r = go r
         in foldStream yieldk single stop m1
-
-
-instance Monad m => Functor (Stream m) where
-    fmap = map
 
 instance MonadTrans Stream where
     lift = yieldM
