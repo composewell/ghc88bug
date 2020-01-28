@@ -17,7 +17,6 @@ import Control.Monad.Catch (throwM)
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Trans.Class (MonadTrans(lift))
-import Control.Monad.Trans.Control (MonadBaseControl)
 import Prelude hiding (map, mapM, concatMap, foldr)
 
 newtype Stream m a =
@@ -57,32 +56,27 @@ drain m = go m
             yieldk _ r = go r
         in k yieldk single stop
 
-data ThreadAbort = ThreadAbort deriving Show
-
-instance Exception ThreadAbort
-
 -- | Events that a child thread may send to a parent thread.
 data ChildEvent a =
       ChildYield a
-    | ChildStop ThreadId (Maybe SomeException)
+    | ChildStop (Maybe SomeException)
 
 data SVar m a = SVar
     { readOutputQ    :: m [ChildEvent a]
     }
 
-type MonadAsync m = (MonadIO m, MonadBaseControl IO m, MonadThrow m)
+type MonadAsync m = (MonadIO m, MonadThrow m)
 
 -- | Pull a stream from an SVar.
 {-# NOINLINE fromStreamVar #-}
 fromStreamVar :: MonadAsync m => SVar m a -> Stream m a
 fromStreamVar sv = mkStream $ \yld sng stp -> do
     list <- readOutputQ sv
-    let MkStream k = processEvents $ reverse list
+    let MkStream k = processEvents $ list
      in k yld sng stp
 
     where
 
-    {-# INLINE processEvents #-}
     processEvents [] = MkStream $ \yld sng stp -> do
         let MkStream k = fromStreamVar sv
          in k yld sng stp
@@ -91,7 +85,7 @@ fromStreamVar sv = mkStream $ \yld sng stp -> do
         let rest = processEvents es
         case ev of
             ChildYield a -> yld a rest
-            ChildStop _ e -> do
+            ChildStop e -> do
                 case e of
                     Nothing -> do
                         stop <- return True
@@ -100,9 +94,4 @@ fromStreamVar sv = mkStream $ \yld sng stp -> do
                         else
                             let MkStream k = rest
                              in k yld sng stp
-                    Just ex ->
-                        case fromException ex of
-                            Just ThreadAbort ->
-                                let MkStream k = rest
-                                 in k yld sng stp
-                            Nothing -> throwM ex
+                    Just ex -> throwM ex
